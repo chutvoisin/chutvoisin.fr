@@ -1,0 +1,759 @@
+<!doctype html>
+<html lang="fr" class="h-full">
+ <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ChutVoisin - Netlify Edition</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="/_sdk/data_sdk.js"></script>
+  <script src="/_sdk/element_sdk.js"></script>
+  <style>
+    html, body { height: 100%; margin: 0; padding: 0; overflow: hidden; }
+    * { box-sizing: border-box; }
+    
+    .font-playfair { font-family: 'Playfair Display', serif; }
+    .font-inter { font-family: 'Inter', sans-serif; }
+    
+    @keyframes fadeInUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes slideIn { from { opacity: 0; transform: translateX(-20px); } to { opacity: 1; transform: translateX(0); } }
+    @keyframes pulse-soft { 0%, 100% { opacity: 0.8; } 50% { opacity: 1; } }
+    @keyframes glow { 0%, 100% { box-shadow: 0 0 10px rgba(59, 130, 246, 0.3); } 50% { box-shadow: 0 0 30px rgba(59, 130, 246, 0.8); } }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    
+    .animate-fadeInUp { animation: fadeInUp 0.8s ease-out; }
+    .animate-fadeIn { animation: fadeIn 0.8s ease-out; }
+    .animate-slideIn { animation: slideIn 0.8s ease-out; }
+    .animate-pulse-soft { animation: pulse-soft 3s ease-in-out infinite; }
+    .animate-glow { animation: glow 2s ease-in-out infinite; }
+    
+    .gradient-dark { background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 50%, #0f1428 100%); }
+    .glass-effect { backdrop-filter: blur(10px); background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); }
+    
+    .btn-primary { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); transition: all 0.3s ease; }
+    .btn-primary:hover { box-shadow: 0 20px 40px rgba(59, 130, 246, 0.3); transform: translateY(-2px); }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+    
+    .btn-secondary { border: 2px solid #3b82f6; color: #3b82f6; transition: all 0.3s ease; }
+    .btn-secondary:hover { background: #3b82f6; color: white; }
+    
+    .message-card { background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(59, 130, 246, 0.2); transition: all 0.3s ease; cursor: pointer; }
+    .message-card:hover { background: rgba(255, 255, 255, 0.08); border-color: rgba(59, 130, 246, 0.5); transform: translateY(-4px); }
+    .message-card.viral { border-color: #fbbf24; box-shadow: 0 0 20px rgba(251, 191, 36, 0.3); }
+    
+    .toast { position: fixed; bottom: 20px; right: 20px; padding: 16px 20px; border-radius: 10px; z-index: 5000; animation: fadeInUp 0.4s ease-out; }
+    .toast-success { background: rgba(34, 197, 94, 0.95); color: white; }
+    .toast-error { background: rgba(239, 68, 68, 0.95); color: white; }
+    .toast-info { background: rgba(59, 130, 246, 0.95); color: white; }
+    
+    .text-gradient { background: linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    
+    .reaction-btn { width: 32px; height: 32px; border-radius: 50%; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+    .reaction-btn:hover { background: rgba(59, 130, 246, 0.3); transform: scale(1.1); }
+    
+    .heat-badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: bold; }
+    .heat-cold { background: rgba(59, 130, 246, 0.3); color: #60a5fa; }
+    .heat-warm { background: rgba(249, 115, 22, 0.3); color: #fb923c; }
+    .heat-hot { background: rgba(239, 68, 68, 0.3); color: #fca5a5; }
+    
+    .category-badge { display: inline-block; padding: 4px 10px; border-radius: 15px; font-size: 10px; font-weight: 600; margin-right: 4px; }
+    .cat-info { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
+    .cat-event { background: rgba(139, 92, 246, 0.2); color: #c4b5fd; }
+    .cat-complaint { background: rgba(239, 68, 68, 0.2); color: #fca5a5; }
+    .cat-advice { background: rgba(34, 197, 94, 0.2); color: #86efac; }
+    
+    .stats-card { background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(59, 130, 246, 0.2); border-radius: 10px; padding: 15px; text-align: center; }
+    
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.7); display: flex; align-items: center; justify-content: center; z-index: 9999; }
+    .modal-content { background: rgba(26, 31, 58, 0.95); border-radius: 15px; border: 1px solid rgba(59, 130, 246, 0.3); padding: 30px; max-width: 600px; max-height: 80vh; overflow-y: auto; }
+    
+    .loading-spinner { display: inline-block; width: 20px; height: 20px; border: 3px solid rgba(59, 130, 246, 0.3); border-top: 3px solid #3b82f6; border-radius: 50%; animation: spin 0.8s linear infinite; }
+  </style>
+ </head>
+ <body class="gradient-dark font-inter text-gray-100 h-full">
+  <div id="app" class="h-full flex flex-col">
+   <!-- NAVBAR -->
+   <nav class="border-b border-gray-800 glass-effect sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center flex-wrap gap-4">
+     <div class="text-2xl font-playfair font-bold text-gradient cursor-pointer animate-glow" onclick="goHome()" style="display: flex; align-items: center; gap: 8px;">
+      <span>🔥</span> <span id="app-title">ChutVoisin</span>
+     </div>
+     <div id="navbar-right" class="flex gap-4 items-center flex-wrap">
+      <button onclick="goHome()" class="px-4 py-2 text-gray-400 hover:text-white transition hidden lg:block">Accueil</button>
+      <button onclick="showPage('trending')" class="px-4 py-2 text-orange-400 hover:text-orange-300 transition hidden lg:block font-semibold">🔥 Tendances</button>
+      <button id="login-btn" onclick="showPage('auth')" class="btn-primary text-white px-6 py-2 rounded-lg">Connexion</button>
+      <div id="user-menu" class="hidden flex gap-2 items-center flex-wrap">
+       <span id="loc-display" class="text-xs text-gray-400 truncate max-w-[150px]">📍 --</span>
+       <button onclick="showPage('profile')" class="text-white px-3 py-2 hover:text-blue-400 transition">👤</button>
+       <button onclick="doLogout()" class="btn-secondary px-4 py-2 rounded-lg text-sm">Déco</button>
+      </div>
+     </div>
+    </div>
+   </nav>
+
+   <!-- HOME PAGE -->
+   <div id="page-home" class="flex-1 overflow-y-auto">
+    <section class="min-h-screen flex items-center justify-center px-4 py-20 relative">
+     <div class="absolute inset-0 opacity-20">
+      <div class="absolute top-20 left-10 w-96 h-96 bg-blue-500 rounded-full mix-blend-screen filter blur-3xl animate-pulse-soft"></div>
+      <div class="absolute bottom-20 right-10 w-96 h-96 bg-indigo-500 rounded-full mix-blend-screen filter blur-3xl animate-pulse-soft" style="animation-delay: 2s;"></div>
+     </div>
+     <div class="max-w-4xl w-full text-center relative z-10">
+      <div class="mb-8 animate-fadeInUp">
+       <div class="text-6xl mb-4 animate-bounce">🔥</div>
+       <h1 class="font-playfair text-5xl md:text-7xl font-bold mb-4">Chut...</h1>
+       <p class="font-playfair text-4xl md:text-6xl font-bold text-gradient"><span id="tagline-display">vos voisins parlent.</span></p>
+      </div>
+      <div class="mb-12 animate-fadeIn" style="animation-delay: 0.2s;">
+       <p class="text-lg md:text-2xl text-gray-400 mb-2">Anonyme • Viral • Temps réel</p>
+       <p class="text-gray-500">Netlify Database 🚀</p>
+      </div>
+      <div class="flex flex-col sm:flex-row gap-4 justify-center animate-slideIn" style="animation-delay: 0.4s;">
+       <button onclick="showPage('feed')" class="btn-primary text-white font-semibold py-4 px-8 rounded-lg">🚀 Voir le fil</button>
+       <button onclick="showPage('auth')" class="btn-secondary font-semibold py-4 px-8 rounded-lg">💣 Poster</button>
+      </div>
+      <div class="mt-16 grid grid-cols-3 gap-4 max-w-2xl mx-auto">
+       <div class="stats-card animate-fadeIn" style="animation-delay: 0.6s;">
+        <div class="text-2xl font-bold text-blue-400" id="stat-messages">0</div>
+        <div class="text-xs text-gray-400">Messages</div>
+       </div>
+       <div class="stats-card animate-fadeIn" style="animation-delay: 0.8s;">
+        <div class="text-2xl font-bold text-orange-400" id="stat-viral">0</div>
+        <div class="text-xs text-gray-400">Viraux</div>
+       </div>
+       <div class="stats-card animate-fadeIn" style="animation-delay: 1s;">
+        <div class="text-2xl font-bold text-green-400" id="stat-users">0</div>
+        <div class="text-xs text-gray-400">Actifs</div>
+       </div>
+      </div>
+     </div>
+    </section>
+   </div>
+
+   <!-- FEED PAGE -->
+   <div id="page-feed" class="hidden flex-1 flex flex-col overflow-hidden">
+    <div class="border-b border-gray-800 glass-effect p-4">
+     <div class="max-w-7xl mx-auto">
+      <div class="flex gap-4 flex-wrap items-center">
+       <input type="text" id="search-input" placeholder="Rechercher..." class="px-4 py-2 bg-slate-800 border border-gray-700 rounded-lg text-white text-sm focus:border-blue-500 focus:outline-none">
+       <select id="category-filter" class="px-4 py-2 bg-slate-800 border border-gray-700 rounded-lg text-white text-sm focus:border-blue-500 focus:outline-none">
+        <option value="">Toutes catégories</option>
+        <option value="info">ℹ️ Infos</option>
+        <option value="event">🎉 Événement</option>
+        <option value="complaint">📢 Plainte</option>
+        <option value="advice">💡 Conseil</option>
+       </select>
+       <select id="sort-select" class="px-4 py-2 bg-slate-800 border border-gray-700 rounded-lg text-white text-sm focus:border-blue-500 focus:outline-none">
+        <option value="recent">Récent</option>
+        <option value="viral">🔥 Viral</option>
+       </select>
+       <button onclick="showPage('compose')" class="btn-primary text-white px-6 py-2 rounded-lg font-semibold ml-auto">💣 Poster</button>
+      </div>
+     </div>
+    </div>
+    <div class="flex-1 overflow-y-auto px-4 py-6">
+     <div class="max-w-3xl mx-auto space-y-4">
+      <div id="messages-container">
+       <div class="text-center py-12">
+        <div class="loading-spinner" style="margin: 0 auto;"></div>
+        <p class="text-gray-500 mt-4">⏳ Chargement...</p>
+       </div>
+      </div>
+     </div>
+    </div>
+   </div>
+
+   <!-- COMPOSE PAGE -->
+   <div id="page-compose" class="hidden flex-1 flex flex-col overflow-hidden">
+    <div class="border-b border-gray-800 glass-effect p-4">
+     <div class="max-w-3xl mx-auto flex justify-between items-center">
+      <h2 class="font-playfair text-2xl font-bold">💣 Nouveau message</h2>
+      <button onclick="showPage('feed')" class="text-gray-400 hover:text-white text-2xl">✕</button>
+     </div>
+    </div>
+    <div class="flex-1 overflow-y-auto px-4 py-6">
+     <div class="max-w-3xl mx-auto">
+      <div class="glass-effect p-8 rounded-xl">
+       <form onsubmit="doPostMessage(event)">
+        <div class="mb-6">
+         <label class="block text-sm font-semibold mb-2">Catégorie</label>
+         <select id="post-category" required class="w-full px-4 py-3 bg-slate-800 border border-gray-700 rounded-lg text-white focus:border-blue-500 focus:outline-none">
+          <option value="">Choisir...</option>
+          <option value="info">ℹ️ Infos</option>
+          <option value="event">🎉 Événement</option>
+          <option value="complaint">📢 Plainte</option>
+          <option value="advice">💡 Conseil</option>
+         </select>
+        </div>
+        <div class="mb-6">
+         <label class="block text-sm font-semibold mb-2">Message (max 500)</label>
+         <textarea id="post-content" placeholder="Qu'est-ce qui se dit ?" required maxlength="500" class="w-full px-4 py-3 bg-slate-800 border border-gray-700 rounded-lg text-white focus:border-blue-500 focus:outline-none resize-none" rows="5"></textarea>
+         <p class="text-xs text-gray-500 mt-2"><span id="char-count">0</span>/500</p>
+        </div>
+        <div class="flex gap-4">
+         <button type="submit" id="submit-btn" class="flex-1 btn-primary text-white py-3 rounded-lg font-semibold">🚀 Publier</button>
+         <button type="button" onclick="showPage('feed')" class="btn-secondary py-3 px-6 rounded-lg">Annuler</button>
+        </div>
+       </form>
+      </div>
+     </div>
+    </div>
+   </div>
+
+   <!-- TRENDING PAGE -->
+   <div id="page-trending" class="hidden flex-1 overflow-y-auto">
+    <div class="max-w-5xl mx-auto px-4 py-12">
+     <h2 class="font-playfair text-4xl font-bold mb-8">🔥 Tendances</h2>
+     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="trending-grid"></div>
+    </div>
+   </div>
+
+   <!-- PROFILE PAGE -->
+   <div id="page-profile" class="hidden flex-1 overflow-y-auto">
+    <div class="max-w-3xl mx-auto px-4 py-12">
+     <div class="glass-effect p-8 rounded-xl mb-8">
+      <h2 class="font-playfair text-3xl font-bold mb-6" id="profile-anon">👤 Profil</h2>
+      <div class="grid grid-cols-4 gap-4 mb-8">
+       <div class="text-center">
+        <div class="text-2xl font-bold text-blue-400" id="profile-messages">0</div>
+        <div class="text-xs text-gray-400">Messages</div>
+       </div>
+       <div class="text-center">
+        <div class="text-2xl font-bold text-orange-400" id="profile-reactions">0</div>
+        <div class="text-xs text-gray-400">Réactions</div>
+       </div>
+       <div class="text-center">
+        <div class="text-2xl font-bold text-green-400" id="profile-level">1</div>
+        <div class="text-xs text-gray-400">Niveau</div>
+       </div>
+       <div class="text-center">
+        <div class="text-2xl font-bold text-purple-400" id="profile-rank">📊</div>
+        <div class="text-xs text-gray-400">Rang</div>
+       </div>
+      </div>
+     </div>
+     <h3 class="font-bold text-xl mb-4">Mes messages</h3>
+     <div id="profile-messages-container" class="space-y-4"></div>
+    </div>
+   </div>
+
+   <!-- AUTH PAGE -->
+   <div id="page-auth" class="hidden flex-1 flex items-center justify-center px-4 py-20 overflow-y-auto">
+    <div class="glass-effect p-10 rounded-xl max-w-md w-full">
+     <h2 class="font-playfair text-3xl font-bold mb-2">ChutVoisin</h2>
+     <p class="text-gray-400 mb-8">Netlify DB 🚀</p>
+     <div id="auth-login" class="space-y-4">
+      <input type="email" id="login-email" placeholder="Email" class="w-full px-4 py-3 bg-slate-800 border border-gray-700 rounded-lg text-white focus:border-blue-500 focus:outline-none">
+      <input type="password" id="login-pwd" placeholder="Mot de passe" class="w-full px-4 py-3 bg-slate-800 border border-gray-700 rounded-lg text-white focus:border-blue-500 focus:outline-none">
+      <button onclick="doLogin()" class="w-full btn-primary text-white py-3 rounded-lg font-semibold">Connexion</button>
+      <button type="button" onclick="toggleAuthForms()" class="w-full btn-secondary py-3 rounded-lg">Créer un compte</button>
+     </div>
+     <div id="auth-signup" class="hidden space-y-4">
+      <input type="email" id="signup-email" placeholder="Email" class="w-full px-4 py-3 bg-slate-800 border border-gray-700 rounded-lg text-white focus:border-blue-500 focus:outline-none">
+      <input type="password" id="signup-pwd" placeholder="Mot de passe (6+)" class="w-full px-4 py-3 bg-slate-800 border border-gray-700 rounded-lg text-white focus:border-blue-500 focus:outline-none">
+      <input type="password" id="signup-pwd2" placeholder="Confirmer" class="w-full px-4 py-3 bg-slate-800 border border-gray-700 rounded-lg text-white focus:border-blue-500 focus:outline-none">
+      <button onclick="doSignup()" class="w-full btn-primary text-white py-3 rounded-lg font-semibold">Créer</button>
+      <button type="button" onclick="toggleAuthForms()" class="w-full btn-secondary py-3 rounded-lg">Retour</button>
+     </div>
+    </div>
+   </div>
+
+   <!-- MESSAGE MODAL -->
+   <div id="message-modal" class="hidden modal-overlay" onclick="closeMessageModal()">
+    <div class="modal-content" onclick="event.stopPropagation()">
+     <div class="flex justify-between items-start mb-6">
+      <div>
+       <h3 class="text-2xl font-bold mb-2" id="modal-author">🤐 Anonyme</h3>
+       <p class="text-gray-400" id="modal-meta">📍 Quartier</p>
+      </div>
+      <button onclick="closeMessageModal()" class="text-2xl text-gray-400 hover:text-white">✕</button>
+     </div>
+     <p class="text-lg text-gray-100 mb-6" id="modal-content">Contenu</p>
+     <div class="mb-6 pb-6 border-b border-gray-700 flex gap-2 flex-wrap">
+      <button class="reaction-btn" onclick="addReactionToModal('❤️')">❤️</button>
+      <button class="reaction-btn" onclick="addReactionToModal('😂')">😂</button>
+      <button class="reaction-btn" onclick="addReactionToModal('😮')">😮</button>
+      <button class="reaction-btn" onclick="addReactionToModal('🔥')">🔥</button>
+     </div>
+     <div class="flex gap-2 flex-wrap">
+      <button class="btn-primary text-white px-4 py-2 rounded-lg text-sm" onclick="shareMessage()">📤 Partager</button>
+      <button class="btn-secondary px-4 py-2 rounded-lg text-sm" onclick="reportMessage()">⚠️ Signaler</button>
+     </div>
+    </div>
+   </div>
+  </div>
+
+  <script>
+    let currentUser = null;
+    let allMessages = [];
+    let currentPage = 'home';
+    let currentMessageModal = null;
+    let netlifyUserData = {};
+
+    const dataHandler = {
+      onDataChanged(data) {
+        allMessages = data || [];
+        updateStats();
+        if (currentPage === 'feed') {
+          renderMessages();
+          renderTrending();
+        } else if (currentPage === 'profile') {
+          renderProfile();
+        }
+      }
+    };
+
+    async function initSDK() {
+      const result = await window.dataSdk.init(dataHandler);
+      if (!result.isOk) {
+        console.error('SDK init failed');
+      }
+    }
+
+    async function initElementSDK() {
+      const defaultConfig = {
+        app_title: 'ChutVoisin',
+        tagline: 'vos voisins parlent.'
+      };
+
+      await window.elementSdk.init({
+        defaultConfig,
+        onConfigChange: async (config) => {
+          document.getElementById('app-title').textContent = config.app_title || defaultConfig.app_title;
+          document.getElementById('tagline-display').textContent = config.tagline || defaultConfig.tagline;
+        },
+        mapToCapabilities: (config) => ({
+          recolorables: [],
+          borderables: [],
+          fontEditable: undefined,
+          fontSizeable: undefined
+        }),
+        mapToEditPanelValues: (config) => new Map([
+          ['app_title', config.app_title || defaultConfig.app_title],
+          ['tagline', config.tagline || defaultConfig.tagline]
+        ])
+      });
+    }
+
+    function showToast(msg, type = 'success') {
+      const toast = document.createElement('div');
+      toast.className = `toast toast-${type}`;
+      toast.textContent = msg;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 3500);
+    }
+
+    function showPage(page) {
+      document.querySelectorAll('[id^="page-"]').forEach(el => el.classList.add('hidden'));
+      document.getElementById(`page-${page}`).classList.remove('hidden');
+      currentPage = page;
+      
+      if (page === 'feed') {
+        renderMessages();
+        renderTrending();
+      } else if (page === 'trending') {
+        renderTrendingPage();
+      } else if (page === 'profile') {
+        renderProfile();
+      }
+    }
+
+    function goHome() {
+      showPage('home');
+    }
+
+    function toggleAuthForms() {
+      document.getElementById('auth-login').classList.toggle('hidden');
+      document.getElementById('auth-signup').classList.toggle('hidden');
+    }
+
+    function updateNavbar() {
+      if (currentUser) {
+        document.getElementById('login-btn').classList.add('hidden');
+        document.getElementById('user-menu').classList.remove('hidden');
+        document.getElementById('loc-display').textContent = `📍 ${currentUser.city || 'Paris'}`;
+      } else {
+        document.getElementById('login-btn').classList.remove('hidden');
+        document.getElementById('user-menu').classList.add('hidden');
+      }
+    }
+
+    function doLogin() {
+      const email = document.getElementById('login-email').value.trim();
+      const pwd = document.getElementById('login-pwd').value.trim();
+      if (!email || !pwd) { 
+        showToast('❌ Remplissez les champs', 'error'); 
+        return; 
+      }
+
+      const users = JSON.parse(localStorage.getItem('cv-users') || '[]');
+      const user = users.find(u => u.email === email && u.password === pwd);
+      if (!user) { 
+        showToast('❌ Identifiants incorrects', 'error'); 
+        return; 
+      }
+
+      currentUser = user;
+      localStorage.setItem('cv-user', JSON.stringify(user));
+      updateNavbar();
+      initSDK();
+      document.getElementById('login-email').value = '';
+      document.getElementById('login-pwd').value = '';
+      showToast('✅ Connecté!', 'success');
+      showPage('feed');
+    }
+
+    function doSignup() {
+      const email = document.getElementById('signup-email').value.trim();
+      const pwd = document.getElementById('signup-pwd').value.trim();
+      const pwd2 = document.getElementById('signup-pwd2').value.trim();
+
+      if (!email || !pwd || !pwd2) { 
+        showToast('❌ Tous les champs requis', 'error'); 
+        return; 
+      }
+      if (!email.includes('@')) { 
+        showToast('❌ Email invalide', 'error'); 
+        return; 
+      }
+      if (pwd.length < 6) { 
+        showToast('❌ Min 6 caractères', 'error'); 
+        return; 
+      }
+      if (pwd !== pwd2) { 
+        showToast('❌ Les mots de passe ne correspondent pas', 'error'); 
+        return; 
+      }
+
+      const users = JSON.parse(localStorage.getItem('cv-users') || '[]');
+      if (users.find(u => u.email === email)) { 
+        showToast('❌ Email déjà utilisé', 'error'); 
+        return; 
+      }
+
+      const newUser = {
+        id: Date.now().toString(),
+        email,
+        password: pwd,
+        anon: 'Anonyme #' + Math.floor(Math.random() * 10000).toString().padStart(4, '0'),
+        created: new Date().toISOString(),
+        city: 'Paris',
+        messages: []
+      };
+
+      users.push(newUser);
+      localStorage.setItem('cv-users', JSON.stringify(users));
+      currentUser = newUser;
+      localStorage.setItem('cv-user', JSON.stringify(newUser));
+      updateNavbar();
+      initSDK();
+      document.getElementById('signup-email').value = '';
+      document.getElementById('signup-pwd').value = '';
+      document.getElementById('signup-pwd2').value = '';
+      toggleAuthForms();
+      showToast('✅ Compte créé!', 'success');
+      showPage('feed');
+    }
+
+    function doLogout() {
+      currentUser = null;
+      localStorage.removeItem('cv-user');
+      updateNavbar();
+      showPage('home');
+      showToast('👋 Déconnecté', 'success');
+    }
+
+    async function doPostMessage(e) {
+      e.preventDefault();
+      if (!currentUser) { 
+        showToast('❌ Connectez-vous', 'error'); 
+        return; 
+      }
+
+      const submitBtn = document.getElementById('submit-btn');
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<div class="loading-spinner" style="display: inline-block; margin-right: 8px;"></div>Publication...';
+
+      const category = document.getElementById('post-category').value.trim();
+      const content = document.getElementById('post-content').value.trim();
+
+      if (!category || !content) { 
+        showToast('❌ Remplissez tous les champs', 'error');
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '🚀 Publier';
+        return; 
+      }
+
+      const msg = {
+        type: 'message',
+        author_id: currentUser.id,
+        author_anon: currentUser.anon,
+        content,
+        category,
+        city: 'Paris',
+        neighborhood: 'Île-de-France',
+        lat: 48.8566,
+        lng: 2.3522,
+        created_at: new Date().toISOString(),
+        likes: 0,
+        reactions: '{}',
+        premium_only: false,
+        nsfw: false,
+        viral_score: 0,
+        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+      };
+
+      const result = await window.dataSdk.create(msg);
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = '🚀 Publier';
+
+      if (result.isOk) {
+        document.getElementById('post-category').value = '';
+        document.getElementById('post-content').value = '';
+        document.getElementById('char-count').textContent = '0';
+        showToast('🚀 Message publié!', 'success');
+        setTimeout(() => showPage('feed'), 600);
+      } else {
+        showToast('❌ Erreur publication', 'error');
+      }
+    }
+
+    document.getElementById('post-content').addEventListener('input', (e) => {
+      document.getElementById('char-count').textContent = e.target.value.length;
+    });
+
+    function getCategoryIcon(cat) {
+      const icons = { info: 'ℹ️', event: '🎉', complaint: '📢', advice: '💡' };
+      return icons[cat] || '📝';
+    }
+
+    function getCategoryClass(cat) {
+      const classes = { info: 'cat-info', event: 'cat-event', complaint: 'cat-complaint', advice: 'cat-advice' };
+      return classes[cat] || 'cat-info';
+    }
+
+    function getViralScore(msg) {
+      const likeCount = (msg.likes || 0);
+      const reactions = typeof msg.reactions === 'string' ? JSON.parse(msg.reactions || '{}') : (msg.reactions || {});
+      const reactionCount = Object.values(reactions).reduce((a, b) => a + b, 0);
+      return likeCount + reactionCount;
+    }
+
+    function getHeatBadge(score) {
+      if (score < 5) return '<span class="heat-badge heat-cold">❄️ Froid</span>';
+      if (score < 15) return '<span class="heat-badge heat-warm">🌡️ Chaud</span>';
+      return '<span class="heat-badge heat-hot">🔥 VIRAL</span>';
+    }
+
+    function updateStats() {
+      const totalMessages = allMessages.length;
+      const viralCount = allMessages.filter(m => getViralScore(m) >= 15).length;
+      const activeUsers = new Set(allMessages.map(m => m.author_id)).size;
+
+      document.getElementById('stat-messages').textContent = totalMessages;
+      document.getElementById('stat-viral').textContent = viralCount;
+      document.getElementById('stat-users').textContent = activeUsers;
+    }
+
+    function renderMessages() {
+      const container = document.getElementById('messages-container');
+      const searchFilter = document.getElementById('search-input')?.value.toLowerCase() || '';
+      const categoryFilter = document.getElementById('category-filter')?.value || '';
+
+      let msgs = allMessages.filter(m => {
+        if (categoryFilter && m.category !== categoryFilter) return false;
+        if (searchFilter && !m.content.toLowerCase().includes(searchFilter)) return false;
+        return true;
+      });
+
+      const sortBy = document.getElementById('sort-select')?.value || 'recent';
+      if (sortBy === 'viral') {
+        msgs.sort((a, b) => getViralScore(b) - getViralScore(a));
+      } else {
+        msgs.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      }
+
+      if (msgs.length === 0) {
+        container.innerHTML = '<div class="text-center py-12"><p class="text-gray-500">Aucun message 😕</p></div>';
+        return;
+      }
+
+      container.innerHTML = msgs.map(m => {
+        const time = new Date(m.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+        const score = getViralScore(m);
+        const isViral = score >= 15;
+        const reactions = typeof m.reactions === 'string' ? JSON.parse(m.reactions || '{}') : (m.reactions || {});
+        
+        const categoryBadge = m.category ? `<span class="category-badge ${getCategoryClass(m.category)}">${getCategoryIcon(m.category)}</span>` : '';
+
+        return `<div class="message-card p-6 rounded-xl ${isViral ? 'viral' : ''}" onclick="openMessageModal('${m.__backendId}')">
+          <div class="flex justify-between items-start mb-3">
+            <div>
+              <span class="font-semibold text-blue-400">${m.author_anon}</span>
+              <span class="text-xs text-gray-600 ml-2">• ${time}</span>
+            </div>
+            <div>${getHeatBadge(score)}</div>
+          </div>
+          ${categoryBadge ? `<div class="mb-2">${categoryBadge}</div>` : ''}
+          <p class="text-gray-200 mb-4">${m.content.substring(0, 150)}${m.content.length > 150 ? '...' : ''}</p>
+          <div class="flex justify-between items-center text-xs text-gray-500 mb-4">
+            <span>📍 ${m.neighborhood}</span>
+            <span>🔥 ${score}</span>
+          </div>
+          <div class="flex gap-2 flex-wrap">
+            <button class="reaction-btn" onclick="addReaction(event, '${m.__backendId}', '❤️')">❤️</button>
+            <button class="reaction-btn" onclick="addReaction(event, '${m.__backendId}', '😂')">😂</button>
+            <button class="reaction-btn" onclick="addReaction(event, '${m.__backendId}', '😮')">😮</button>
+            <button class="reaction-btn" onclick="addReaction(event, '${m.__backendId}', '🔥')">🔥</button>
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    function addReaction(event, messageId, emoji) {
+      event.stopPropagation();
+      const msg = allMessages.find(m => m.__backendId === messageId);
+      if (!msg) return;
+
+      const reactions = typeof msg.reactions === 'string' ? JSON.parse(msg.reactions || '{}') : (msg.reactions || {});
+      reactions[emoji] = (reactions[emoji] || 0) + 1;
+      msg.reactions = JSON.stringify(reactions);
+      msg.likes = Object.values(reactions).reduce((a, b) => a + b, 0);
+
+      window.dataSdk.update(msg);
+      showToast(`${emoji} Ajouté!`);
+    }
+
+    function openMessageModal(messageId) {
+      const msg = allMessages.find(m => m.__backendId === messageId);
+      if (!msg) return;
+
+      currentMessageModal = msg;
+      document.getElementById('modal-author').textContent = msg.author_anon;
+      document.getElementById('modal-meta').textContent = `📍 ${msg.neighborhood}`;
+      document.getElementById('modal-content').textContent = msg.content;
+
+      document.getElementById('message-modal').classList.remove('hidden');
+    }
+
+    function closeMessageModal() {
+      document.getElementById('message-modal').classList.add('hidden');
+      currentMessageModal = null;
+    }
+
+    function addReactionToModal(emoji) {
+      if (!currentMessageModal) return;
+      const reactions = typeof currentMessageModal.reactions === 'string' ? JSON.parse(currentMessageModal.reactions || '{}') : (currentMessageModal.reactions || {});
+      reactions[emoji] = (reactions[emoji] || 0) + 1;
+      currentMessageModal.reactions = JSON.stringify(reactions);
+      currentMessageModal.likes = Object.values(reactions).reduce((a, b) => a + b, 0);
+      window.dataSdk.update(currentMessageModal);
+      openMessageModal(currentMessageModal.__backendId);
+      showToast(`${emoji} Ajouté!`);
+    }
+
+    function shareMessage() {
+      if (!currentMessageModal) return;
+      const text = `"${currentMessageModal.content}" 📍 ${currentMessageModal.neighborhood} #ChutVoisin`;
+      if (navigator.share) {
+        navigator.share({ title: 'ChutVoisin', text: text });
+      } else {
+        navigator.clipboard.writeText(text);
+        showToast('📋 Copié!');
+      }
+    }
+
+    function reportMessage() {
+      if (!currentMessageModal) return;
+      showToast('⚠️ Message signalé');
+      closeMessageModal();
+    }
+
+    function renderTrendingPage() {
+      const trendingData = {};
+      allMessages.forEach(msg => {
+        const key = `${msg.city}-${msg.neighborhood}`;
+        trendingData[key] = (trendingData[key] || 0) + 1;
+      });
+
+      const sorted = Object.entries(trendingData).sort((a, b) => b[1] - a[1]);
+      const grid = document.getElementById('trending-grid');
+      
+      grid.innerHTML = sorted.map(([loc, count]) => {
+        const [city, neighborhood] = loc.split('-');
+        return `<div class="message-card p-6 rounded-xl cursor-pointer">
+          <div class="text-4xl mb-4">🔥</div>
+          <h3 class="font-bold text-xl mb-2">${neighborhood}</h3>
+          <p class="text-gray-400 mb-4">${city}</p>
+          <div class="flex justify-between items-center">
+            <span class="text-3xl font-bold text-orange-400">${count}</span>
+            <span class="text-xs text-gray-500">messages</span>
+          </div>
+        </div>`;
+      }).join('') || '<p class="text-gray-500">Aucune tendance</p>';
+    }
+
+    function renderTrending() {
+      const trendingData = {};
+      allMessages.forEach(msg => {
+        const key = `${msg.city}-${msg.neighborhood}`;
+        trendingData[key] = (trendingData[key] || 0) + 1;
+      });
+    }
+
+    function renderProfile() {
+      if (!currentUser) return;
+
+      const userMessages = allMessages.filter(m => m.author_id === currentUser.id);
+      const totalReactions = userMessages.reduce((sum, m) => {
+        const reactions = typeof m.reactions === 'string' ? JSON.parse(m.reactions || '{}') : (m.reactions || {});
+        return sum + Object.values(reactions).reduce((a, b) => a + b, 0);
+      }, 0);
+
+      document.getElementById('profile-anon').textContent = currentUser.anon;
+      document.getElementById('profile-messages').textContent = userMessages.length;
+      document.getElementById('profile-reactions').textContent = totalReactions;
+      document.getElementById('profile-level').textContent = Math.floor(totalReactions / 10) + 1;
+      document.getElementById('profile-rank').textContent = totalReactions > 50 ? '⭐' : '📊';
+
+      const profileContainer = document.getElementById('profile-messages-container');
+      if (userMessages.length === 0) {
+        profileContainer.innerHTML = '<p class="text-gray-500">Pas de messages encore</p>';
+        return;
+      }
+
+      profileContainer.innerHTML = userMessages.slice(0, 5).map(m => {
+        const score = getViralScore(m);
+        return `<div class="message-card p-6 rounded-xl">
+          <p class="text-gray-200 mb-2">${m.content.substring(0, 100)}...</p>
+          <div class="flex justify-between text-xs text-gray-500">
+            <span>📍 ${m.neighborhood}</span>
+            <span>🔥 ${score}</span>
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    if (document.getElementById('search-input')) {
+      document.getElementById('search-input').addEventListener('input', renderMessages);
+      document.getElementById('category-filter').addEventListener('change', renderMessages);
+      document.getElementById('sort-select').addEventListener('change', renderMessages);
+    }
+
+    const saved = localStorage.getItem('cv-user');
+    if (saved) {
+      currentUser = JSON.parse(saved);
+      updateNavbar();
+      initSDK();
+      showPage('feed');
+    } else {
+      showPage('home');
+    }
+
+    initElementSDK();
+  </script>
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9cefcfde00d002e2',t:'MTc3MTI3MzkyMi4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
