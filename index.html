@@ -291,7 +291,7 @@
     let allMessages = [];
     let currentPage = 'home';
     let currentMessageModal = null;
-    let netlifyUserData = {};
+    let sdkReady = false;
 
     const dataHandler = {
       onDataChanged(data) {
@@ -299,7 +299,8 @@
         updateStats();
         if (currentPage === 'feed') {
           renderMessages();
-          renderTrending();
+        } else if (currentPage === 'trending') {
+          renderTrendingPage();
         } else if (currentPage === 'profile') {
           renderProfile();
         }
@@ -307,13 +308,16 @@
     };
 
     async function initSDK() {
+      if (!window.dataSdk) return;
       const result = await window.dataSdk.init(dataHandler);
-      if (!result.isOk) {
-        console.error('SDK init failed');
+      if (result && result.isOk) {
+        sdkReady = true;
+        updateStats();
       }
     }
 
     async function initElementSDK() {
+      if (!window.elementSdk) return;
       const defaultConfig = {
         app_title: 'ChutVoisin',
         tagline: 'vos voisins parlent.'
@@ -353,7 +357,6 @@
       
       if (page === 'feed') {
         renderMessages();
-        renderTrending();
       } else if (page === 'trending') {
         renderTrendingPage();
       } else if (page === 'profile') {
@@ -487,6 +490,13 @@
         return; 
       }
 
+      if (!sdkReady || !window.dataSdk) {
+        showToast('❌ Base de données non disponible', 'error');
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '🚀 Publier';
+        return;
+      }
+
       const msg = {
         type: 'message',
         author_id: currentUser.id,
@@ -510,7 +520,7 @@
       submitBtn.disabled = false;
       submitBtn.innerHTML = '🚀 Publier';
 
-      if (result.isOk) {
+      if (result && result.isOk) {
         document.getElementById('post-category').value = '';
         document.getElementById('post-content').value = '';
         document.getElementById('char-count').textContent = '0';
@@ -538,7 +548,7 @@
     function getViralScore(msg) {
       const likeCount = (msg.likes || 0);
       const reactions = typeof msg.reactions === 'string' ? JSON.parse(msg.reactions || '{}') : (msg.reactions || {});
-      const reactionCount = Object.values(reactions).reduce((a, b) => a + b, 0);
+      const reactionCount = Object.values(reactions).reduce((a, b) => a + (b || 0), 0);
       return likeCount + reactionCount;
     }
 
@@ -615,13 +625,15 @@
 
     function addReaction(event, messageId, emoji) {
       event.stopPropagation();
+      if (!sdkReady || !window.dataSdk) return;
+      
       const msg = allMessages.find(m => m.__backendId === messageId);
       if (!msg) return;
 
       const reactions = typeof msg.reactions === 'string' ? JSON.parse(msg.reactions || '{}') : (msg.reactions || {});
       reactions[emoji] = (reactions[emoji] || 0) + 1;
       msg.reactions = JSON.stringify(reactions);
-      msg.likes = Object.values(reactions).reduce((a, b) => a + b, 0);
+      msg.likes = Object.values(reactions).reduce((a, b) => a + (b || 0), 0);
 
       window.dataSdk.update(msg);
       showToast(`${emoji} Ajouté!`);
@@ -645,11 +657,13 @@
     }
 
     function addReactionToModal(emoji) {
-      if (!currentMessageModal) return;
+      if (!currentMessageModal || !sdkReady || !window.dataSdk) return;
+      
       const reactions = typeof currentMessageModal.reactions === 'string' ? JSON.parse(currentMessageModal.reactions || '{}') : (currentMessageModal.reactions || {});
       reactions[emoji] = (reactions[emoji] || 0) + 1;
       currentMessageModal.reactions = JSON.stringify(reactions);
-      currentMessageModal.likes = Object.values(reactions).reduce((a, b) => a + b, 0);
+      currentMessageModal.likes = Object.values(reactions).reduce((a, b) => a + (b || 0), 0);
+      
       window.dataSdk.update(currentMessageModal);
       openMessageModal(currentMessageModal.__backendId);
       showToast(`${emoji} Ajouté!`);
@@ -696,21 +710,13 @@
       }).join('') || '<p class="text-gray-500">Aucune tendance</p>';
     }
 
-    function renderTrending() {
-      const trendingData = {};
-      allMessages.forEach(msg => {
-        const key = `${msg.city}-${msg.neighborhood}`;
-        trendingData[key] = (trendingData[key] || 0) + 1;
-      });
-    }
-
     function renderProfile() {
       if (!currentUser) return;
 
       const userMessages = allMessages.filter(m => m.author_id === currentUser.id);
       const totalReactions = userMessages.reduce((sum, m) => {
         const reactions = typeof m.reactions === 'string' ? JSON.parse(m.reactions || '{}') : (m.reactions || {});
-        return sum + Object.values(reactions).reduce((a, b) => a + b, 0);
+        return sum + Object.values(reactions).reduce((a, b) => a + (b || 0), 0);
       }, 0);
 
       document.getElementById('profile-anon').textContent = currentUser.anon;
@@ -737,10 +743,18 @@
       }).join('');
     }
 
-    if (document.getElementById('search-input')) {
-      document.getElementById('search-input').addEventListener('input', renderMessages);
-      document.getElementById('category-filter').addEventListener('change', renderMessages);
-      document.getElementById('sort-select').addEventListener('change', renderMessages);
+    const searchInput = document.getElementById('search-input');
+    const categoryFilter = document.getElementById('category-filter');
+    const sortSelect = document.getElementById('sort-select');
+
+    if (searchInput) {
+      searchInput.addEventListener('input', renderMessages);
+    }
+    if (categoryFilter) {
+      categoryFilter.addEventListener('change', renderMessages);
+    }
+    if (sortSelect) {
+      sortSelect.addEventListener('change', renderMessages);
     }
 
     const saved = localStorage.getItem('cv-user');
@@ -755,5 +769,5 @@
 
     initElementSDK();
   </script>
- <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9cefcfde00d002e2',t:'MTc3MTI3MzkyMi4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9cf0126e52b9494a',t:'MTc3MTI3NjY0OC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
