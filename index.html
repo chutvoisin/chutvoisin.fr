@@ -9,328 +9,292 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="/_sdk/data_sdk.js"></script>
   <script src="/_sdk/element_sdk.js"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
   <style>
     * { box-sizing: border-box; }
-    html, body { height: 100%; margin: 0; padding: 0; overflow: hidden; }
+    html, body { height: 100%; margin: 0; padding: 0; }
     
     .font-display { font-family: 'Space Mono', monospace; font-weight: 700; }
     .font-body { font-family: 'Inter', sans-serif; }
     
     @keyframes pulse-strong { 0%, 100% { box-shadow: 0 0 20px rgba(239, 68, 68, 0.2); } 50% { box-shadow: 0 0 40px rgba(239, 68, 68, 0.6); } }
-    @keyframes slide-up { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
-    @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes slide-up { from { opacity: 0; transform: translateY(40px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes glow-text { 0%, 100% { text-shadow: 0 0 10px rgba(239, 68, 68, 0.3); } 50% { text-shadow: 0 0 30px rgba(239, 68, 68, 0.8); } }
+    @keyframes float { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-15px); } }
     @keyframes spin { to { transform: rotate(360deg); } }
-    @keyframes shimmer { 0% { background-position: -1000px 0; } 100% { background-position: 1000px 0; } }
     
-    .animate-pulse-strong { animation: pulse-strong 2s ease-in-out infinite; }
-    .animate-slide-up { animation: slide-up 0.6s ease-out; }
-    .animate-fade-in { animation: fade-in 0.8s ease-out; }
+    .animate-pulse-strong { animation: pulse-strong 2.5s ease-in-out infinite; }
+    .animate-slide-up { animation: slide-up 0.7s ease-out; }
+    .animate-glow-text { animation: glow-text 3s ease-in-out infinite; }
+    .animate-float { animation: float 4s ease-in-out infinite; }
     
-    .loader { display: inline-block; width: 20px; height: 20px; border: 3px solid rgba(239, 68, 68, 0.2); border-top-color: #EF4444; border-radius: 50%; animation: spin 0.8s linear infinite; }
+    .loader { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(239, 68, 68, 0.3); border-top-color: #EF4444; border-radius: 50%; animation: spin 0.8s linear infinite; }
     
-    .gradient-dark { background: linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 50%, #0d0d0d 100%); }
-    .gradient-card { background: linear-gradient(135deg, rgba(30, 30, 30, 0.8) 0%, rgba(20, 20, 20, 0.8) 100%); }
+    .gradient-dark { background: linear-gradient(135deg, #0a0a0a 0%, #141414 50%, #0d0d0d 100%); }
+    .gradient-card { background: linear-gradient(135deg, rgba(20, 20, 20, 0.9) 0%, rgba(15, 15, 15, 0.9) 100%); border: 1px solid rgba(239, 68, 68, 0.15); }
+    .gradient-red { background: linear-gradient(135deg, #DC2626 0%, #991B1B 100%); }
     
-    .toast { position: fixed; bottom: 20px; right: 20px; padding: 14px 20px; border-radius: 8px; background: rgba(51, 51, 51, 0.95); color: white; font-size: 13px; z-index: 5000; animation: slide-up 0.4s ease-out; border-left: 4px solid #EF4444; }
-    .toast.success { border-left-color: #22C55E; background: rgba(34, 197, 94, 0.2); }
-    .toast.error { border-left-color: #EF4444; background: rgba(239, 68, 68, 0.2); }
-    .toast.info { border-left-color: #3B82F6; background: rgba(59, 130, 246, 0.2); }
+    .toast { position: fixed; bottom: 24px; right: 24px; padding: 14px 20px; border-radius: 8px; background: rgba(20, 20, 20, 0.95); color: white; font-size: 13px; z-index: 5000; animation: slide-up 0.4s ease-out; border-left: 3px solid #EF4444; }
+    .toast.success { border-left-color: #22C55E; }
+    .toast.error { border-left-color: #EF4444; }
     
-    .modal-backdrop { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(4px); z-index: 40; display: none; }
-    .modal-backdrop.active { display: block; }
-    
-    .modal { position: fixed; inset: 0; z-index: 50; display: none; align-items: center; justify-content: center; }
-    .modal.active { display: flex; }
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.85); z-index: 40; display: none; align-items: center; justify-content: center; }
+    .modal-overlay.active { display: flex; }
     
     #map { width: 100% !important; height: 100% !important; }
     .leaflet-container { background: linear-gradient(135deg, #1a1a1a, #0f0f0f); }
     
-    .message-badge { display: inline-block; padding: 2px 6px; border-radius: 3px; font-size: 11px; font-weight: 600; }
-    .badge-new { background: #EF4444; color: white; }
-    .badge-premium { background: #FBBF24; color: #000; }
-    .badge-expiring { background: #F97316; color: white; }
-    
-    ::-webkit-scrollbar { width: 8px; }
-    ::-webkit-scrollbar-track { background: rgba(239, 68, 68, 0.05); }
-    ::-webkit-scrollbar-thumb { background: linear-gradient(180deg, #EF4444, #DC2626); border-radius: 4px; }
+    .page { display: none; height: 100%; width: 100%; }
+    .page.active { display: flex; }
   </style>
 </head>
-<body class="gradient-dark font-body text-gray-100">
+<body class="gradient-dark font-body text-gray-100 overflow-hidden">
 
   <!-- PAGE: HOME -->
-  <div id="page-home" class="h-full flex flex-col overflow-y-auto">
-    <!-- NAVBAR HOME -->
-    <nav class="sticky top-0 z-30 border-b border-gray-800 bg-black/50 backdrop-blur">
+  <div id="page-home" class="page active flex-col">
+    <nav class="border-b border-gray-800 bg-black/40 backdrop-blur-md sticky top-0 z-20">
       <div class="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-        <div class="flex items-center gap-2">
-          <span class="text-3xl">🤫</span>
-          <h1 class="font-display text-2xl text-white" id="app-title">ChutVoisin</h1>
+        <div class="flex items-center gap-3">
+          <span class="text-3xl animate-pulse-strong">🤫</span>
+          <span class="font-display text-2xl text-white">ChutVoisin</span>
         </div>
         <div class="flex gap-4 items-center">
-          <button onclick="showLogin()" class="text-gray-400 hover:text-white transition text-sm font-medium">Se connecter</button>
-          <button onclick="showSignup()" class="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold transition">S'inscrire</button>
+          <button type="button" onclick="showPage('page-login')" class="text-gray-300 hover:text-white transition font-medium text-sm px-4 py-2">Se connecter</button>
+          <button type="button" onclick="showPage('page-signup')" class="px-6 py-2 bg-gradient-red hover:from-red-700 hover:to-red-900 text-white font-bold rounded-lg transition">S'inscrire</button>
         </div>
       </div>
     </nav>
 
-    <!-- HERO SECTION -->
-    <section class="flex-1 flex items-center justify-center px-6 py-20">
-      <div class="max-w-3xl text-center">
-        <div class="mb-8 animate-slide-up">
-          <span class="text-7xl block mb-4">🔥</span>
-          <h2 class="font-display text-5xl lg:text-6xl text-white mb-4">
-            Quelqu'un parle<br/>de ton quartier
-          </h2>
-          <p class="text-xl text-gray-400 mb-2">Tu n'es peut-être pas au courant.</p>
-          <p class="text-gray-500 text-sm">Messages anonymes • Hyperlocal • Temps réel</p>
-        </div>
+    <div class="flex-1 flex items-center justify-center px-4 py-16 overflow-y-auto">
+      <div class="max-w-4xl w-full">
+        <div class="text-center mb-16 animate-slide-up">
+          <div class="mb-8">
+            <div class="text-8xl mb-6 animate-float inline-block">🔥</div>
+            <h1 class="font-display text-6xl lg:text-7xl text-white leading-tight mb-4">
+              <span class="text-red-500 animate-glow-text">Quelqu'un parle</span><br/>de ton quartier.
+            </h1>
+            <p class="text-xl lg:text-2xl text-gray-400 mb-2">Tu n'es peut-être pas au courant.</p>
+            <p class="text-gray-500 text-sm">Messages anonymes • Hyperlocal • Temps réel 🌍</p>
+          </div>
 
-        <div class="mb-12 animate-fade-in" style="animation-delay: 0.2s;">
-          <button onclick="goToApp()" class="inline-block px-8 py-4 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-bold rounded-lg text-lg transition-all hover:scale-105 shadow-2xl">
+          <button type="button" onclick="handleCTA()" class="inline-block px-8 lg:px-10 py-4 lg:py-5 bg-gradient-to-r from-red-600 to-orange-600 text-white font-display text-lg rounded-xl transition hover:scale-110 shadow-2xl animate-pulse-strong">
             🚀 Entrer dans mon quartier
           </button>
         </div>
 
-        <!-- STATS -->
-        <div class="grid grid-cols-3 gap-6 max-w-md mx-auto mt-16">
-          <div class="gradient-card p-6 rounded-lg border border-gray-700">
-            <div class="font-display text-3xl text-red-500" id="stat-messages">0</div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16">
+          <div class="gradient-card rounded-xl p-6 text-center">
+            <div class="text-4xl mb-3">🗣️</div>
+            <h3 class="font-bold text-white mb-2">Anonyme 100%</h3>
+            <p class="text-sm text-gray-400">Aucune donnée personnelle affichée</p>
+          </div>
+          <div class="gradient-card rounded-xl p-6 text-center">
+            <div class="text-4xl mb-3">📍</div>
+            <h3 class="font-bold text-white mb-2">Hyperlocal</h3>
+            <p class="text-sm text-gray-400">500m autour de toi en temps réel</p>
+          </div>
+          <div class="gradient-card rounded-xl p-6 text-center">
+            <div class="text-4xl mb-3">⚡</div>
+            <h3 class="font-bold text-white mb-2">Urgent</h3>
+            <p class="text-sm text-gray-400">Messages qui expirent automatiquement</p>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-4 mb-16 max-w-md mx-auto">
+          <div class="gradient-card rounded-lg p-4 text-center">
+            <div class="font-display text-2xl text-red-500" id="stat-messages">0</div>
             <div class="text-xs text-gray-500 mt-1">Messages</div>
           </div>
-          <div class="gradient-card p-6 rounded-lg border border-gray-700">
-            <div class="font-display text-3xl text-orange-500" id="stat-active">0</div>
+          <div class="gradient-card rounded-lg p-4 text-center">
+            <div class="font-display text-2xl text-orange-500" id="stat-users">0</div>
             <div class="text-xs text-gray-500 mt-1">Actifs</div>
           </div>
-          <div class="gradient-card p-6 rounded-lg border border-gray-700">
-            <div class="font-display text-3xl text-yellow-500" id="stat-premium">0</div>
+          <div class="gradient-card rounded-lg p-4 text-center">
+            <div class="font-display text-2xl text-yellow-500" id="stat-premium">0</div>
             <div class="text-xs text-gray-500 mt-1">Premium</div>
           </div>
         </div>
-
-        <!-- TRUST FOOTER -->
-        <div class="mt-20 pt-12 border-t border-gray-800">
-          <div class="flex items-center justify-center gap-8 flex-wrap">
-            <div class="text-sm text-gray-400">🇫🇷 100% Français</div>
-            <div class="text-sm text-gray-400">🔒 Anonymat total</div>
-            <div class="text-sm text-gray-400">🛡️ Données sécurisées</div>
-          </div>
-        </div>
       </div>
-    </section>
+    </div>
   </div>
 
-  <!-- PAGE: AUTH (SIGNUP/LOGIN) -->
-  <div id="page-auth" class="h-full hidden flex items-center justify-center px-6 py-12">
+  <!-- PAGE: LOGIN -->
+  <div id="page-login" class="page flex-col items-center justify-center px-4 overflow-y-auto">
     <div class="w-full max-w-md">
-      <!-- LOGIN FORM -->
-      <div id="form-login" class="gradient-card border border-gray-700 rounded-xl p-8">
-        <div class="mb-6 text-center">
-          <span class="text-5xl mb-4 block">🤫</span>
-          <h2 class="font-display text-2xl text-white mb-2">Connexion</h2>
+      <div class="gradient-card rounded-2xl p-8">
+        <div class="text-center mb-8">
+          <div class="text-6xl mb-4">🔓</div>
+          <h2 class="font-display text-3xl text-white mb-2">Connexion</h2>
           <p class="text-gray-400 text-sm">Accède à ChutVoisin</p>
         </div>
 
         <div class="space-y-4">
           <div>
             <label class="block text-sm text-gray-300 mb-2 font-semibold">Email</label>
-            <input type="email" id="login-email" placeholder="ton@email.com" class="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:border-red-500 focus:outline-none transition">
+            <input type="email" id="login-email" placeholder="ton@email.com" class="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder-gray-600 focus:border-red-500 focus:outline-none">
           </div>
           <div>
             <label class="block text-sm text-gray-300 mb-2 font-semibold">Mot de passe</label>
-            <input type="password" id="login-pwd" placeholder="••••••" class="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:border-red-500 focus:outline-none transition">
+            <input type="password" id="login-pwd" placeholder="••••••" class="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder-gray-600 focus:border-red-500 focus:outline-none">
           </div>
-          <button onclick="doLogin()" class="w-full py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg transition">🔓 Connexion</button>
+          <button type="button" onclick="handleLogin()" class="w-full py-3 bg-gradient-red text-white font-bold rounded-lg">Se connecter</button>
         </div>
 
         <div class="mt-6 text-center">
-          <p class="text-gray-400 text-sm">Pas de compte ? <button onclick="showSignup()" class="text-red-500 hover:text-red-400 font-semibold">S'inscrire</button></p>
+          <p class="text-gray-400 text-sm">Pas de compte ? <button type="button" onclick="showPage('page-signup')" class="text-red-500 font-bold">S'inscrire</button></p>
         </div>
       </div>
+    </div>
+  </div>
 
-      <!-- SIGNUP FORM -->
-      <div id="form-signup" class="hidden gradient-card border border-gray-700 rounded-xl p-8">
-        <div class="mb-6 text-center">
-          <span class="text-5xl mb-4 block">📝</span>
-          <h2 class="font-display text-2xl text-white mb-2">S'inscrire</h2>
-          <p class="text-gray-400 text-sm">100% anonyme • Aucune donnée personnelle affichée</p>
+  <!-- PAGE: SIGNUP -->
+  <div id="page-signup" class="page flex-col items-center justify-center px-4 overflow-y-auto">
+    <div class="w-full max-w-md">
+      <div class="gradient-card rounded-2xl p-8">
+        <div class="text-center mb-8">
+          <div class="text-6xl mb-4">📝</div>
+          <h2 class="font-display text-3xl text-white mb-2">S'inscrire</h2>
+          <p class="text-gray-400 text-sm">Rejoins la communauté</p>
         </div>
 
         <div class="space-y-4">
           <div>
             <label class="block text-sm text-gray-300 mb-2 font-semibold">Email</label>
-            <input type="email" id="signup-email" placeholder="ton@email.com" class="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:border-red-500 focus:outline-none transition">
+            <input type="email" id="signup-email" placeholder="ton@email.com" class="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder-gray-600 focus:border-red-500 focus:outline-none">
           </div>
           <div>
             <label class="block text-sm text-gray-300 mb-2 font-semibold">Mot de passe</label>
-            <input type="password" id="signup-pwd" placeholder="Minimum 6 caractères" class="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:border-red-500 focus:outline-none transition">
+            <input type="password" id="signup-pwd" placeholder="Minimum 6 caractères" class="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder-gray-600 focus:border-red-500 focus:outline-none">
           </div>
-          <button onclick="doSignup()" class="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition">✅ Créer un compte</button>
+          <button type="button" onclick="handleSignup()" class="w-full py-3 bg-blue-600 text-white font-bold rounded-lg">Créer un compte</button>
         </div>
 
         <div class="mt-6 text-center">
-          <p class="text-gray-400 text-sm">Déjà inscrit ? <button onclick="showLogin()" class="text-red-500 hover:text-red-400 font-semibold">Se connecter</button></p>
+          <p class="text-gray-400 text-sm">Déjà inscrit ? <button type="button" onclick="showPage('page-login')" class="text-red-500 font-bold">Se connecter</button></p>
         </div>
 
-        <div class="mt-6 pt-6 border-t border-gray-700 text-xs text-gray-500 text-center">
-          ✅ Aucune donnée personnelle affichée – 100 % anonyme
+        <div class="mt-4 bg-green-900/20 border border-green-600/30 rounded-lg p-3 text-center text-xs text-green-400">
+          ✅ Aucune donnée affichée – 100% anonyme
         </div>
       </div>
     </div>
   </div>
 
-  <!-- MODAL: GEO PERMISSION (BLOCKING) -->
-  <div id="modal-geo" class="modal-backdrop"></div>
-  <div id="modal-geo-content" class="modal">
-    <div class="gradient-card border border-red-600 rounded-2xl p-8 max-w-md w-full mx-4">
-      <div class="text-center mb-6">
-        <span class="text-6xl block mb-4">📍</span>
-        <h2 class="font-display text-2xl text-white mb-2">Localisation obligatoire</h2>
-      </div>
+  <!-- MODAL: GEO -->
+  <div id="modal-geo" class="modal-overlay">
+    <div class="w-full max-w-md mx-4">
+      <div class="gradient-card rounded-2xl border-2 border-red-600 p-8 animate-slide-up">
+        <div class="text-center mb-6">
+          <div class="text-7xl mb-4">📍</div>
+          <h2 class="font-display text-3xl text-white mb-2">Localisation obligatoire</h2>
+        </div>
 
-      <p class="text-gray-300 text-center mb-6">ChutVoisin a besoin de votre position pour afficher les messages proches de vous.</p>
+        <p class="text-gray-300 text-center mb-6">ChutVoisin a besoin de votre position pour afficher les messages proches de vous.</p>
 
-      <div id="geo-error" class="hidden bg-red-900/20 border border-red-500 rounded-lg p-3 mb-4 text-red-400 text-sm">
-        ❌ Impossible d'accéder à votre localisation. Veuillez activer le GPS ou autoriser votre navigateur.
-      </div>
+        <div id="geo-error" class="hidden bg-red-900/30 border border-red-500 rounded-lg p-4 mb-6 text-red-400 text-sm text-center">
+          ❌ Impossible d'accéder à votre localisation. Activez le GPS.
+        </div>
 
-      <div class="space-y-3">
-        <button onclick="requestLocation()" id="geo-btn" class="w-full py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg transition">✅ Autoriser ma position</button>
-        <button onclick="goHome()" class="w-full py-3 bg-gray-800 hover:bg-gray-700 text-gray-300 font-semibold rounded-lg transition">❌ Quitter</button>
+        <div class="space-y-3">
+          <button type="button" onclick="requestGeo()" id="btn-geo" class="w-full py-4 bg-green-600 text-white font-bold rounded-lg">✅ Autoriser ma position</button>
+          <button type="button" onclick="closeGeoModal(); showPage('page-home');" class="w-full py-3 bg-gray-800 text-gray-300 font-semibold rounded-lg">❌ Quitter</button>
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- PAGE: APP MAIN -->
-  <div id="page-app" class="h-full hidden flex flex-col">
-    <!-- NAVBAR APP -->
-    <nav class="sticky top-0 z-30 border-b border-gray-800 bg-black/50 backdrop-blur">
-      <div class="max-w-7xl mx-auto px-6 py-4">
+  <!-- PAGE: APP -->
+  <div id="page-app" class="page flex-col">
+    <nav class="border-b border-gray-800 bg-black/50">
+      <div class="px-4 lg:px-6 py-4">
         <div class="flex justify-between items-center flex-wrap gap-4">
           <div class="flex items-center gap-3">
             <span class="text-2xl">🤫</span>
-            <h1 class="font-display text-xl text-white">ChutVoisin</h1>
+            <span class="font-display text-xl text-white">ChutVoisin</span>
             <div class="text-xs text-gray-500">📍 <span id="nav-location">--</span></div>
           </div>
-          <div class="flex items-center gap-6">
-            <div class="flex gap-3 text-xs">
-              <div class="bg-gray-900 px-3 py-2 rounded">
-                <span class="font-bold text-red-500" id="app-messages">0</span> messages
-              </div>
-              <div class="bg-gray-900 px-3 py-2 rounded">
-                <span class="font-bold text-yellow-500" id="app-premium">0</span> Premium
-              </div>
-            </div>
-            <button onclick="togglePremium()" class="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white font-semibold rounded-lg text-sm transition">⭐ Premium</button>
-            <button onclick="doLogout()" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg text-sm transition">🚪 Déco</button>
+          <div class="flex items-center gap-4">
+            <button type="button" onclick="openPremiumModal()" class="px-4 py-2 bg-yellow-600 text-white font-bold rounded-lg text-sm">⭐ Premium</button>
+            <button type="button" onclick="handleLogout()" class="px-4 py-2 bg-red-600 text-white font-bold rounded-lg text-sm">🚪 Déco</button>
           </div>
         </div>
       </div>
     </nav>
 
-    <!-- MAIN CONTENT -->
-    <div class="flex-1 flex gap-6 p-6 overflow-hidden min-h-0">
-      <!-- LEFT: MAP -->
+    <div class="flex-1 flex gap-6 p-6 overflow-hidden">
       <div class="flex-1 rounded-xl border border-gray-700 overflow-hidden hidden lg:block">
         <div id="map"></div>
       </div>
 
-      <!-- RIGHT: MESSAGES & COMPOSE -->
-      <div class="w-full lg:w-96 flex flex-col gap-4 overflow-hidden">
-        <!-- COMPOSE -->
-        <div class="gradient-card border border-gray-700 rounded-xl p-4">
-          <textarea id="message-input" placeholder="Dis-nous ce qui se passe dans ton quartier..." maxlength="500" class="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:border-red-500 focus:outline-none resize-none text-sm" rows="3"></textarea>
+      <div class="w-full lg:w-96 flex flex-col gap-4">
+        <div class="gradient-card rounded-xl p-4">
+          <textarea id="message-input" placeholder="Dis-nous ce qui se passe..." maxlength="500" class="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder-gray-600 resize-none text-sm" rows="3"></textarea>
           <div class="flex justify-between items-center mt-3">
             <span class="text-xs text-gray-500"><span id="char-count">0</span>/500</span>
-            <button onclick="postMessage()" id="post-btn" class="px-6 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg transition text-sm">💣 Poster</button>
+            <button type="button" onclick="postMessage()" class="px-6 py-2 bg-gradient-red text-white font-bold rounded-lg text-sm">💣 Poster</button>
           </div>
         </div>
 
-        <!-- MESSAGES LIST -->
         <div class="flex-1 overflow-y-auto">
-          <div id="messages-container" class="space-y-3">
-            <p class="text-center text-gray-500 py-8">Chargement des messages...</p>
+          <div id="messages-list" class="space-y-3">
+            <p class="text-center text-gray-500 py-8">Chargement...</p>
           </div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- MODAL: MESSAGE DETAIL -->
-  <div id="modal-message-bg" class="modal-backdrop"></div>
-  <div id="modal-message" class="modal">
-    <div class="gradient-card border border-gray-700 rounded-xl p-8 max-w-2xl w-full mx-4 max-h-[90%] overflow-y-auto">
-      <div class="flex justify-between items-start mb-6">
-        <div>
-          <h2 class="font-display text-2xl text-white mb-1" id="detail-author">Anonyme</h2>
-          <p class="text-sm text-gray-500" id="detail-info">À l'instant • 200m</p>
+  <!-- MODAL: MESSAGE -->
+  <div id="modal-message" class="modal-overlay">
+    <div class="w-full max-w-2xl mx-4">
+      <div class="gradient-card rounded-2xl p-8">
+        <div class="flex justify-between items-start mb-6">
+          <div>
+            <h2 class="font-display text-2xl text-white" id="detail-author">Anonyme</h2>
+            <p class="text-sm text-gray-500" id="detail-info">--</p>
+          </div>
+          <button type="button" onclick="closeMessageModal()" class="text-3xl text-gray-500">✕</button>
         </div>
-        <button onclick="closeMessageModal()" class="text-2xl text-gray-500 hover:text-white transition">✕</button>
-      </div>
-
-      <p class="text-gray-200 mb-6 leading-relaxed" id="detail-content">Message...</p>
-
-      <div class="flex items-center gap-4 pb-6 border-b border-gray-700">
-        <button id="detail-like" class="flex items-center gap-2 px-4 py-2 bg-red-900/20 hover:bg-red-900/40 text-red-400 rounded-lg transition font-semibold text-sm">
-          ❤️ <span id="detail-likes">0</span>
-        </button>
-        <button id="detail-premium" class="flex items-center gap-2 px-4 py-2 bg-yellow-900/20 hover:bg-yellow-900/40 text-yellow-400 rounded-lg transition font-semibold text-sm">
-          ⭐ Premium
-        </button>
-      </div>
-
-      <div class="mt-6 text-xs text-gray-500 text-center">
-        Ce message expire automatiquement
+        <p class="text-gray-200 mb-6" id="detail-content">--</p>
+        <button type="button" id="btn-like" class="px-4 py-2 bg-red-900/20 text-red-400 rounded-lg font-bold">❤️ <span id="detail-likes">0</span></button>
       </div>
     </div>
   </div>
 
   <!-- MODAL: PREMIUM -->
-  <div id="modal-premium-bg" class="modal-backdrop"></div>
-  <div id="modal-premium" class="modal">
-    <div class="gradient-card border border-yellow-600 rounded-xl max-w-2xl w-full mx-4">
-      <div class="p-8">
+  <div id="modal-premium" class="modal-overlay">
+    <div class="w-full max-w-2xl mx-4">
+      <div class="gradient-card rounded-2xl border-2 border-yellow-600 p-8">
         <div class="text-center mb-8">
-          <span class="text-6xl block mb-4">⭐</span>
-          <h2 class="font-display text-3xl text-white mb-2">Débloquer Premium</h2>
+          <div class="text-7xl mb-4">⭐</div>
+          <h2 class="font-display text-3xl text-white">Débloquer Premium</h2>
         </div>
 
-        <!-- COMPARISON TABLE -->
-        <div class="grid grid-cols-2 gap-6 mb-8">
-          <div class="gradient-card border border-gray-700 rounded-lg p-6">
-            <h3 class="font-bold text-white mb-4">Gratuit</h3>
-            <ul class="space-y-2 text-sm text-gray-400">
+        <div class="grid grid-cols-2 gap-4 mb-8">
+          <div class="gradient-card p-4 rounded-lg">
+            <h3 class="font-bold text-white mb-3">Gratuit</h3>
+            <ul class="text-sm text-gray-400 space-y-2">
               <li>✅ Messages 24h</li>
-              <li>✅ Vue standard</li>
-              <li>❌ Accès limité</li>
-              <li>❌ Messages exclusifs</li>
+              <li>✅ Accès limité</li>
             </ul>
           </div>
-          <div class="bg-gradient-to-br from-yellow-900/30 to-orange-900/30 border border-yellow-600 rounded-lg p-6">
-            <h3 class="font-bold text-yellow-400 mb-4">Premium 👑</h3>
-            <ul class="space-y-2 text-sm text-yellow-200">
+          <div class="bg-yellow-900/20 border border-yellow-600 p-4 rounded-lg">
+            <h3 class="font-bold text-yellow-400 mb-3">Premium 👑</h3>
+            <ul class="text-sm text-yellow-200 space-y-2">
               <li>✅ Messages 7 jours</li>
-              <li>✅ Vue prioritaire</li>
               <li>✅ Accès complet</li>
-              <li>✅ Messages exclusifs</li>
             </ul>
           </div>
-        </div>
-
-        <div class="bg-yellow-900/20 border border-yellow-600 rounded-lg p-4 mb-6 text-center">
-          <p class="text-yellow-400 font-semibold">Badge "Voisin Premium" 👑</p>
-          <p class="text-xs text-gray-400">Visible auprès de ta communauté</p>
         </div>
 
         <div class="space-y-3">
-          <button onclick="activatePremium()" class="w-full py-3 bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-700 hover:to-orange-700 text-white font-bold rounded-lg transition">🔓 Débloquer les messages cachés</button>
-          <button onclick="closePremiumModal()" class="w-full py-3 bg-gray-800 hover:bg-gray-700 text-gray-300 font-semibold rounded-lg transition">Pas maintenant</button>
+          <button type="button" onclick="activatePremium()" class="w-full py-4 bg-gradient-to-r from-yellow-600 to-orange-600 text-white font-bold rounded-lg">🔓 Débloquer</button>
+          <button type="button" onclick="closePremiumModal()" class="w-full py-3 bg-gray-800 text-gray-300 font-semibold rounded-lg">Pas maintenant</button>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- TOAST CONTAINER -->
   <div id="toast-container"></div>
 
   <script>
@@ -341,7 +305,7 @@
     let map = null;
     let mapMarkers = [];
 
-    // SDK Initialization
+    // SDK Init
     const dataHandler = {
       onDataChanged(data) {
         allMessages = data || [];
@@ -355,231 +319,206 @@
       if (window.dataSdk) {
         await window.dataSdk.init(dataHandler);
       }
-
       if (window.elementSdk) {
-        const defaultConfig = { app_title: 'ChutVoisin', tagline: 'Réseau social anonyme hyperlocal' };
+        const cfg = { hero_title: 'Quelqu\'un parle de ton quartier.' };
         await window.elementSdk.init({
-          defaultConfig,
-          onConfigChange: async (cfg) => {
-            document.getElementById('app-title').textContent = cfg.app_title || defaultConfig.app_title;
-          },
+          defaultConfig: cfg,
+          onConfigChange: async (c) => { },
           mapToCapabilities: () => ({ recolorables: [], borderables: [], fontEditable: undefined, fontSizeable: undefined }),
-          mapToEditPanelValues: (cfg) => new Map([['app_title', cfg.app_title || defaultConfig.app_title]])
+          mapToEditPanelValues: (c) => new Map([])
         });
       }
     }
 
-    // Navigation
-    function showHome() {
-      document.getElementById('page-home').classList.remove('hidden');
-      document.getElementById('page-auth').classList.add('hidden');
-      document.getElementById('page-app').classList.add('hidden');
+    // PAGE FUNCTIONS
+    function showPage(id) {
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      document.getElementById(id).classList.add('active');
     }
 
-    function goHome() {
-      showHome();
+    // MODAL FUNCTIONS
+    function openGeoModal() {
+      document.getElementById('modal-geo').classList.add('active');
+      document.getElementById('geo-error').classList.add('hidden');
     }
 
-    function showLogin() {
-      document.getElementById('form-login').classList.remove('hidden');
-      document.getElementById('form-signup').classList.add('hidden');
-      document.getElementById('page-home').classList.add('hidden');
-      document.getElementById('page-auth').classList.remove('hidden');
-      document.getElementById('page-app').classList.add('hidden');
+    function closeGeoModal() {
+      document.getElementById('modal-geo').classList.remove('active');
     }
 
-    function showSignup() {
-      document.getElementById('form-login').classList.add('hidden');
-      document.getElementById('form-signup').classList.remove('hidden');
-      document.getElementById('page-home').classList.add('hidden');
-      document.getElementById('page-auth').classList.remove('hidden');
-      document.getElementById('page-app').classList.add('hidden');
+    function openMessageModal(msgId) {
+      const msg = allMessages.find(m => m.__backendId === msgId);
+      if (!msg) return;
+      const dist = Math.round(getDistance(userLocation.lat, userLocation.lng, msg.lat, msg.lng));
+      const time = new Date(msg.created_at).toLocaleTimeString('fr-FR');
+      document.getElementById('detail-author').textContent = msg.author_anon;
+      document.getElementById('detail-info').textContent = `${time} • ${dist}m`;
+      document.getElementById('detail-content').textContent = msg.content;
+      document.getElementById('detail-likes').textContent = msg.likes || 0;
+      document.getElementById('btn-like').onclick = () => {
+        msg.likes = (msg.likes || 0) + 1;
+        window.dataSdk.update(msg);
+      };
+      document.getElementById('modal-message').classList.add('active');
     }
 
-    function goToApp() {
-      if (currentUser) {
-        showApp();
+    function closeMessageModal() {
+      document.getElementById('modal-message').classList.remove('active');
+    }
+
+    function openPremiumModal() {
+      document.getElementById('modal-premium').classList.add('active');
+    }
+
+    function closePremiumModal() {
+      document.getElementById('modal-premium').classList.remove('active');
+    }
+
+    // AUTH
+    function handleCTA() {
+      if (!currentUser) {
+        showPage('page-login');
+      } else if (!userLocation) {
+        openGeoModal();
       } else {
-        showLogin();
+        showPage('page-app');
       }
     }
 
-    function showApp() {
-      document.getElementById('page-home').classList.add('hidden');
-      document.getElementById('page-auth').classList.add('hidden');
-      document.getElementById('page-app').classList.remove('hidden');
-      if (!map) initMap();
-    }
-
-    // Auth
-    async function doLogin() {
+    function handleLogin() {
       const email = document.getElementById('login-email').value.trim();
       const pwd = document.getElementById('login-pwd').value.trim();
-
+      
       if (!email || !pwd) {
         showToast('Remplissez tous les champs', 'error');
         return;
       }
-
+      
       const users = JSON.parse(localStorage.getItem('cv-users') || '[]');
       const user = users.find(u => u.email === email && u.password === pwd);
-
+      
       if (!user) {
-        showToast('Email ou mot de passe incorrect', 'error');
+        showToast('Identifiants incorrects', 'error');
         return;
       }
-
+      
       currentUser = user;
       userIsPremium = user.isPremium || false;
       localStorage.setItem('cv-user', JSON.stringify(currentUser));
       document.getElementById('login-email').value = '';
       document.getElementById('login-pwd').value = '';
       showToast('✅ Connecté!', 'success');
-      requestLocation();
+      setTimeout(openGeoModal, 300);
     }
 
-    async function doSignup() {
+    function handleSignup() {
       const email = document.getElementById('signup-email').value.trim();
       const pwd = document.getElementById('signup-pwd').value.trim();
-
+      
       if (!email || !pwd) {
         showToast('Remplissez tous les champs', 'error');
         return;
       }
-
+      
       if (pwd.length < 6) {
-        showToast('Le mot de passe doit faire au moins 6 caractères', 'error');
+        showToast('Minimum 6 caractères', 'error');
         return;
       }
-
+      
       const users = JSON.parse(localStorage.getItem('cv-users') || '[]');
       if (users.find(u => u.email === email)) {
-        showToast('Cet email est déjà utilisé', 'error');
+        showToast('Email déjà utilisé', 'error');
         return;
       }
-
+      
       const newUser = {
         id: Date.now().toString(),
-        email,
+        email: email,
         password: pwd,
         anon: 'Anonyme #' + Math.floor(Math.random() * 9999).toString().padStart(4, '0'),
-        created: new Date().toISOString(),
-        isPremium: false
+        isPremium: false,
+        created: new Date().toISOString()
       };
-
+      
       users.push(newUser);
       localStorage.setItem('cv-users', JSON.stringify(users));
+      
       currentUser = newUser;
+      userIsPremium = false;
       localStorage.setItem('cv-user', JSON.stringify(currentUser));
+      
       document.getElementById('signup-email').value = '';
       document.getElementById('signup-pwd').value = '';
-      showToast('✅ Compte créé! Bienvenue.', 'success');
-      requestLocation();
+      
+      showToast('✅ Compte créé!', 'success');
+      setTimeout(openGeoModal, 300);
     }
 
-    function doLogout() {
+    function handleLogout() {
       currentUser = null;
       userLocation = null;
       userIsPremium = false;
       localStorage.removeItem('cv-user');
-      showHome();
-      showToast('👋 Vous avez été déconnecté');
+      showPage('page-home');
+      showToast('👋 À bientôt!');
     }
 
-    // Geolocation
-    function requestLocation() {
-      if (navigator.geolocation) {
-        const btn = document.getElementById('geo-btn');
-        btn.disabled = true;
-        btn.innerHTML = '<span class="loader"></span> Localisation...';
-
-        navigator.geolocation.getCurrentPosition(
-          (position) => {
-            userLocation = {
-              lat: position.coords.latitude,
-              lng: position.coords.longitude
-            };
-            localStorage.setItem('cv-location', JSON.stringify(userLocation));
-            updateLocationDisplay();
-            closeGeoModal();
-            showApp();
-            initSDKs();
-          },
-          (error) => {
-            btn.disabled = false;
-            btn.innerHTML = '✅ Autoriser ma position';
-            document.getElementById('geo-error').classList.remove('hidden');
-            showToast('❌ Localisation refusée', 'error');
-          }
-        );
+    // GEOLOCATION
+    function requestGeo() {
+      if (!navigator.geolocation) {
+        showToast('Géolocalisation indisponible', 'error');
+        return;
       }
+      
+      const btn = document.getElementById('btn-geo');
+      btn.disabled = true;
+      btn.textContent = '🔄 Localisation...';
+      
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          userLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+          localStorage.setItem('cv-location', JSON.stringify(userLocation));
+          closeGeoModal();
+          showPage('page-app');
+          initSDKs();
+          if (!map) setTimeout(initMap, 100);
+          document.getElementById('nav-location').textContent = `${userLocation.lat.toFixed(2)}°`;
+        },
+        (err) => {
+          btn.disabled = false;
+          btn.textContent = '✅ Autoriser ma position';
+          document.getElementById('geo-error').classList.remove('hidden');
+        }
+      );
     }
 
-    function updateLocationDisplay() {
-      if (userLocation) {
-        document.getElementById('nav-location').textContent = `${userLocation.lat.toFixed(2)}°, ${userLocation.lng.toFixed(2)}°`;
-      }
-    }
-
-    function showGeoModal() {
-      document.getElementById('modal-geo').classList.add('active');
-      document.getElementById('modal-geo-content').classList.add('active');
-    }
-
-    function closeGeoModal() {
-      document.getElementById('modal-geo').classList.remove('active');
-      document.getElementById('modal-geo-content').classList.remove('active');
-    }
-
-    // Map
+    // MAP
     function initMap() {
-      if (!userLocation) return;
-      if (map) return;
-
+      if (!userLocation || map) return;
       map = L.map('map').setView([userLocation.lat, userLocation.lng], 15);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap',
-        maxZoom: 19
-      }).addTo(map);
-
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
       L.circleMarker([userLocation.lat, userLocation.lng], {
-        radius: 12,
-        fillColor: '#EF4444',
-        color: '#991B1B',
-        weight: 3,
-        opacity: 1,
-        fillOpacity: 0.8
-      }).addTo(map).bindPopup('📍 Vous êtes ici', { closeButton: false });
-
-      L.circle([userLocation.lat, userLocation.lng], {
-        radius: 500,
-        fillColor: 'rgba(239, 68, 68, 0.05)',
-        color: 'rgba(239, 68, 68, 0.3)',
-        weight: 1,
-        fillOpacity: 0.05
+        radius: 10, fillColor: '#EF4444', color: '#991B1B', weight: 2, fillOpacity: 0.9
       }).addTo(map);
-
       renderMapMarkers();
     }
 
     function renderMapMarkers() {
-      if (!map || !userLocation) return;
+      if (!map) return;
       mapMarkers.forEach(m => map.removeLayer(m));
       mapMarkers = [];
-
       getVisibleMessages().forEach(msg => {
-        const marker = L.marker([msg.lat, msg.lng]).addTo(map);
-        marker.on('click', () => openMessageModal(msg.__backendId));
-        mapMarkers.push(marker);
+        const m = L.circleMarker([msg.lat, msg.lng], {
+          radius: 8, fillColor: '#FBBF24', color: '#D97706', weight: 2, fillOpacity: 0.8
+        }).addTo(map).on('click', () => openMessageModal(msg.__backendId));
+        mapMarkers.push(m);
       });
     }
 
+    // MESSAGES
     function getDistance(lat1, lng1, lat2, lng2) {
-      const R = 6371e3;
-      const φ1 = lat1 * Math.PI / 180;
-      const φ2 = lat2 * Math.PI / 180;
-      const Δφ = (lat2 - lat1) * Math.PI / 180;
-      const Δλ = (lng2 - lng1) * Math.PI / 180;
+      const R = 6371e3, φ1 = lat1 * Math.PI / 180, φ2 = lat2 * Math.PI / 180;
+      const Δφ = (lat2 - lat1) * Math.PI / 180, Δλ = (lng2 - lng1) * Math.PI / 180;
       const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
       const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
       return R * c;
@@ -590,219 +529,119 @@
       const now = new Date();
       return allMessages.filter(m => {
         const dist = getDistance(userLocation.lat, userLocation.lng, m.lat, m.lng);
-        const expires = new Date(m.expires_at);
-        const isPremiumContent = m.is_premium;
-        
         if (dist > 500) return false;
-        if (expires < now) return false;
-        if (isPremiumContent && !userIsPremium) return false;
+        if (new Date(m.expires_at) < now) return false;
+        if (m.is_premium && !userIsPremium) return false;
         return true;
       }).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
     }
 
     function renderMessages() {
-      const container = document.getElementById('messages-container');
       const msgs = getVisibleMessages();
-
-      if (msgs.length === 0) {
-        container.innerHTML = '<p class="text-center text-gray-500 py-12">Aucun message à proximité</p>';
-        return;
-      }
-
-      container.innerHTML = msgs.map(m => {
-        const dist = Math.round(getDistance(userLocation.lat, userLocation.lng, m.lat, m.lng));
-        const time = new Date(m.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-        const expiresIn = new Date(m.expires_at);
-        const timeLeft = Math.floor((expiresIn - new Date()) / 1000 / 60);
-
-        let badges = '';
-        if (m.is_premium) badges += '<span class="message-badge badge-premium">👑 Premium</span> ';
-
-        return `<div class="gradient-card border border-gray-700 rounded-lg p-4 cursor-pointer hover:border-red-500/50 transition" onclick="openMessageModal('${m.__backendId}')">
-          <div class="flex justify-between items-start mb-2">
-            <span class="font-bold text-gray-400 text-sm">${m.author_anon}</span>
-            <span class="text-xs text-gray-500">${dist}m</span>
-          </div>
-          <p class="text-sm text-gray-200 mb-3">${m.content.substring(0, 100)}${m.content.length > 100 ? '...' : ''}</p>
-          <div class="flex justify-between items-center">
-            <div class="flex gap-2">${badges}</div>
-            <div class="flex items-center gap-2">
-              <span class="text-xs text-red-500">❤️ ${m.likes || 0}</span>
-              <span class="text-xs text-gray-600">⏱️ ${timeLeft}m</span>
+      document.getElementById('messages-list').innerHTML = msgs.length === 0
+        ? '<p class="text-center text-gray-500 py-8">Aucun message</p>'
+        : msgs.map(m => {
+          const dist = Math.round(getDistance(userLocation.lat, userLocation.lng, m.lat, m.lng));
+          const timeLeft = Math.floor((new Date(m.expires_at) - new Date()) / 60000);
+          return `<div class="gradient-card rounded-lg p-4 cursor-pointer" onclick="openMessageModal('${m.__backendId}')">
+            <div class="flex justify-between mb-2">
+              <span class="font-bold text-gray-400 text-sm">${m.author_anon}</span>
+              <span class="text-xs text-gray-500">${dist}m</span>
             </div>
-          </div>
-        </div>`;
-      }).join('');
+            <p class="text-sm text-gray-200 mb-2">${m.content.substring(0, 100)}</p>
+            <div class="flex justify-between text-xs">
+              <span class="text-red-500">❤️ ${m.likes || 0}</span>
+              <span class="text-orange-500">⏱️ ${timeLeft}m</span>
+            </div>
+          </div>`;
+        }).join('');
     }
 
-    // Messages
     async function postMessage() {
       if (!currentUser || !userLocation) {
-        showToast('Vous devez être connecté et localisé', 'error');
+        showToast('Erreur', 'error');
         return;
       }
-
+      
       const content = document.getElementById('message-input').value.trim();
       if (!content) {
         showToast('Écrivez quelque chose!', 'error');
         return;
       }
-
-      const btn = document.getElementById('post-btn');
-      btn.disabled = true;
-      btn.innerHTML = '<span class="loader"></span> Publication...';
-
+      
       const msg = {
-        message_id: Date.now().toString(),
+        id: Date.now().toString(),
         author_id: currentUser.id,
         author_anon: currentUser.anon,
-        content,
+        content: content,
         category: 'general',
         lat: userLocation.lat,
         lng: userLocation.lng,
         created_at: new Date().toISOString(),
-        expires_at: userIsPremium ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() : new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+        expires_at: new Date(Date.now() + (userIsPremium ? 7 : 1) * 24 * 60 * 60 * 1000).toISOString(),
         likes: 0,
-        is_premium: false,
-        visibility_radius: 500
+        is_premium: false
       };
-
-      const result = await window.dataSdk.create(msg);
-      btn.disabled = false;
-      btn.innerHTML = '💣 Poster';
-
-      if (result.isOk) {
-        document.getElementById('message-input').value = '';
-        document.getElementById('char-count').textContent = '0';
-        showToast('✅ Message posté!', 'success');
-      } else {
-        showToast('Erreur lors de la publication', 'error');
-      }
+      
+      await window.dataSdk.create(msg);
+      document.getElementById('message-input').value = '';
+      document.getElementById('char-count').textContent = '0';
+      showToast('✅ Posté!', 'success');
     }
 
-    function openMessageModal(messageId) {
-      const msg = allMessages.find(m => m.__backendId === messageId);
-      if (!msg) return;
-
-      const dist = Math.round(getDistance(userLocation.lat, userLocation.lng, msg.lat, msg.lng));
-      const time = new Date(msg.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-
-      document.getElementById('detail-author').textContent = msg.author_anon + (msg.is_premium ? ' 👑' : '');
-      document.getElementById('detail-info').textContent = `${time} • ${dist}m`;
-      document.getElementById('detail-content').textContent = msg.content;
-      document.getElementById('detail-likes').textContent = msg.likes || 0;
-
-      const likeBtn = document.getElementById('detail-like');
-      likeBtn.onclick = () => addLike(msg.__backendId);
-
-      const premiumBtn = document.getElementById('detail-premium');
-      if (msg.is_premium && !userIsPremium) {
-        premiumBtn.classList.remove('hidden');
-        premiumBtn.onclick = () => {
-          closeMessageModal();
-          openPremiumModal();
-        };
-      } else {
-        premiumBtn.classList.add('hidden');
-      }
-
-      document.getElementById('modal-message-bg').classList.add('active');
-      document.getElementById('modal-message').classList.add('active');
-    }
-
-    function closeMessageModal() {
-      document.getElementById('modal-message-bg').classList.remove('active');
-      document.getElementById('modal-message').classList.remove('active');
-    }
-
-    async function addLike(messageId) {
-      const msg = allMessages.find(m => m.__backendId === messageId);
-      if (!msg) return;
-
-      msg.likes = (msg.likes || 0) + 1;
-      await window.dataSdk.update(msg);
-      showToast('❤️ Like ajouté!', 'success');
-      openMessageModal(messageId);
-    }
-
-    // Premium
-    function togglePremium() {
-      if (userIsPremium) {
-        showToast('Vous êtes déjà Premium! 👑', 'info');
-      } else {
-        openPremiumModal();
-      }
-    }
-
-    function openPremiumModal() {
-      document.getElementById('modal-premium-bg').classList.add('active');
-      document.getElementById('modal-premium').classList.add('active');
-    }
-
-    function closePremiumModal() {
-      document.getElementById('modal-premium-bg').classList.remove('active');
-      document.getElementById('modal-premium').classList.remove('active');
-    }
-
-    async function activatePremium() {
+    function activatePremium() {
       currentUser.isPremium = true;
       userIsPremium = true;
       localStorage.setItem('cv-user', JSON.stringify(currentUser));
-
       const users = JSON.parse(localStorage.getItem('cv-users') || '[]');
       const idx = users.findIndex(u => u.id === currentUser.id);
-      if (idx !== -1) {
+      if (idx >= 0) {
         users[idx].isPremium = true;
         localStorage.setItem('cv-users', JSON.stringify(users));
       }
-
-      showToast('✅ Bienvenue Premium! 👑', 'success');
       closePremiumModal();
+      showToast('✅ Premium activé! 👑', 'success');
       renderMessages();
     }
 
-    // Stats
+    // STATS
     function updateStats() {
       document.getElementById('stat-messages').textContent = allMessages.length;
-      document.getElementById('stat-active').textContent = new Set(allMessages.map(m => m.author_id)).size;
+      document.getElementById('stat-users').textContent = new Set(allMessages.map(m => m.author_id)).size;
       document.getElementById('stat-premium').textContent = allMessages.filter(m => m.is_premium).length;
-      document.getElementById('app-messages').textContent = getVisibleMessages().length;
-      document.getElementById('app-premium').textContent = allMessages.filter(m => m.is_premium).length;
     }
 
-    // Toast
     function showToast(msg, type = 'success') {
-      const toast = document.createElement('div');
-      toast.className = `toast ${type !== 'success' ? `toast-${type}` : ''}`;
-      toast.textContent = msg;
-      document.getElementById('toast-container').appendChild(toast);
-      setTimeout(() => toast.remove(), 3500);
+      const t = document.createElement('div');
+      t.className = `toast ${type}`;
+      t.textContent = msg;
+      document.getElementById('toast-container').appendChild(t);
+      setTimeout(() => t.remove(), 3500);
     }
 
-    // Char counter
+    // EVENT LISTENERS
     document.getElementById('message-input').addEventListener('input', (e) => {
       document.getElementById('char-count').textContent = e.target.value.length;
     });
 
-    // Init
+    // INIT
     const saved = localStorage.getItem('cv-user');
     if (saved) {
       currentUser = JSON.parse(saved);
       userIsPremium = currentUser.isPremium || false;
-      document.getElementById('nav-location').textContent = currentUser.email;
-
       const savedLoc = localStorage.getItem('cv-location');
       if (savedLoc) {
         userLocation = JSON.parse(savedLoc);
-        updateLocationDisplay();
-        showApp();
+        showPage('page-app');
         initSDKs();
+        if (!map) setTimeout(initMap, 100);
       } else {
-        showGeoModal();
+        showPage('page-home');
+        setTimeout(openGeoModal, 500);
       }
     } else {
-      showHome();
+      showPage('page-home');
     }
   </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9cf04ee1f1fabb78',t:'MTc3MTI3OTEyNS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9cf08a9d10920251',t:'MTc3MTI4MTU3MS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
